@@ -5,8 +5,7 @@
 
 
 (defn reject-keys
-  "The inverse of select-keys, it returns `m` without the given list of keys
-  `ks`."
+  "The inverse of select-keys, it returns `m` without the `unwanted` keys."
   [m unwanted]
   (let [desired (set/difference (into #{} (keys m)) (into #{} unwanted))]
     (select-keys m desired)))
@@ -73,18 +72,38 @@
 ;; display utilities
 
 
+(defn segments
+  "Converts a `path` vector into a set of vectors containing each segment of the
+  path.
+
+  Example:
+
+      (segments [:a :b :c]) ; => #{[:a :b] [:b :c]}"
+  [path]
+  (->> path
+       (partition 2 1)
+       (map vec)
+       (into #{})))
+
+
+(defn dot-edge
+  "Creates a Dorothy-style edge-definition vector for the given edge. It creates
+  a bolder style for edges that are part of the `shortest-path`."
+  [shortest-path edge weight]
+  (let [attrs (cond-> {:label weight, :style :dashed}
+                (contains? shortest-path edge) (assoc :style :bold))]
+    (conj edge attrs)))
+
+
 (defn ->dorothy
   "Takes a `graph` as given to [[dijkstra]] and returns a vector suitable for
-  use in drawing a dorothy digraph displaying the graph with the `shortest-path`
+  use in drawing a Dorothy digraph displaying the graph with the `shortest-path`
   highlighted."
   [graph shortest-path]
-  (let [path-segments (into #{} (map vec (partition 2 1 shortest-path)))]
+  (let [path-segments (segments shortest-path)]
     (-> (reduce-kv (fn [v node neighbors]
                      (reduce-kv (fn [v neighbor weight]
-                                  (let [edge [node neighbor]
-                                        attrs (cond-> {:label weight, :style :dashed}
-                                                (contains? path-segments edge) (assoc :style :bold))]
-                                    (conj v (conj edge attrs))))
+                                  (conj v (dot-edge path-segments [node neighbor] weight)))
                                 v
                                 neighbors))
                    []
